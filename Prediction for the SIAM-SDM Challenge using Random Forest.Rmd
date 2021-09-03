@@ -1,0 +1,928 @@
+---
+title: "Data-driven Modeling and Optimization"
+date: "7 July 2021"
+author: 
+  - "Larissa Melo (11145746)" 
+  - "Mirco Friedrichs (11094675)" 
+  - "Andrey Domnyshev (11146992)" 
+  - "Anantharaman Iyer (11147113)"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{css, echo=FALSE}
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+```
+
+# Introduction into Random Forest algorithm
+
+## Basic principle   
+
+* Random forests are an approach to building models where the actual model builder could be a decision tree algorithm, a regression algorithm, or any one of many other kinds of model building algorithms.
+* A Random forest merges a collection of independent decision trees to get more accurate and stable prediction[4].
+* Type of Ensemble methods in order to decrease both bias and variance.
+
+## Algorithm description 
+
+* Sampling the datasets: The random forest algorithm builds multiple decision trees, using a concept called bagging, to introduce random sampling into the whole process. Each bag of observations is then used as the training dataset for building a decision tree[4].
+
+* Sampling the Variables: At each step in building a single decision node, a random, and usually small, set of variables is chosen. Only these variables are considered when choosing a split point. For each node in building a decision tree, a different random set of variables is considered[4].
+
+* Randomness: By randomly sampling both the data and the variables, we introduce decision trees that purposefully have different performance behaviours for different subsets of the data. In building each decision tree, the random forest algorithm generally will not perform any pruning of the decision tree. Overfitted models tend not to perform well on new data. However, a random forest of overfitted trees can deliver a very good model that performs well on new data[4].
+
+* Ensemble Scoring: All the decision trees play an important role in final decision that is made from the analysis, so a simple majority might dictate the outcome in the future[4].
+
+## Avoiding Overfitting in Random Forests 
+
+Overfitting arises when a decision tree is excessively dependent on irrelevant features of the training data with the result that its predictive power for unseen instances is reduced.
+
+If the individual trees would overfit, due to the random construction elements in each tree, they would overfit 'in different directions', so the overfitting parts of the answer have the tendency to cancel out. This happens when the results are averaged over many trees, this is how random forests avoids overfitting.
+
+There are two approaches to avoid overfitting: 
+
+* Pre-Pruning: Generating a tree with fewer branches than would otherwise be the case. 
+Post-Pruning: Generating a tree in full and then removing parts of it.
+
+* In addition, growing a larger forest will improve predictive accuracy [3]
+
+## Bootstrap in Random Forests 
+
+* Usage of some samples multiple times in a single tree refers to bootstrapping, in other words there is a replacement for sampling random sets of observations.
+## https://towardsdatascience.com/an-implementation-and-explanation-of-the-random-forest-in-python-77bf308a9b76
+
+### Importance of Bootstrap
+
+This method makes use of the general procedure of reducing the variance for those algorithm that have high variance.
+## https://machinelearningmastery.com/bagging-and-random-forest-ensemble-algorithms-for-machine-learning/
+
+
+### Procedure to initialize Bootstrap
+
+Assume a set of values for which we calculate the mean 
+
+```{r}
+x = sample(1:30, 30, replace= TRUE)
+length(unique(x))
+```
+From the above code we draw some conclusions such as 
+1. Create random sub-samples of our data set with replacement.
+2. Calculate the mean of each sub-sample.
+3. Calculate the average of all of our collected means and use that as our estimated mean for the data.
+
+## Out of Bag Prediction
+
+When the training data uses the samples after replacement, there is some data which is left out of the samples these left out samples are called Out-of-bag data and these samples are the OOB Predictors.
+
+### Out of Bag data set
+
+The out-of-bag data set is the set of data that is not choosen in the sample processing. This process occurs while creating the random forest. This explanation is shown in the picture below.
+
+![Visualizing of bagging process. Sampling 4 patients from the orogonal set with replacement and showing out-of-bag sets. Only patients in the bootstrap sample would be used to train the model for the bag](RF1_Picture1.png) [2]
+
+### Out of Bag Error 
+### I am unable to find a good explanation here 
+
+Out-of-bag (OOB) error, also called out-of-bag estimate, is a method of measuring the prediction error of random forests, boosted decision trees, and other machine learning models utilizing bootstrap aggregating (bagging). Bagging uses subsampling with replacement to create training samples for the model to learn from. OOB error is the mean prediction error on each training sample $x_i$, using only the trees that did not have $x_i$ in their bootstrap sample. General Idea of calculating the Out of Bag Error:
+
+* Find all models (or trees, in case of random forest) that are not trained by the OOB instance.
+* Take the majority vote of these models' result for the OOB instance, compared to the true value of the OOB instance.
+* Compile the OOB error for all instances in the OOB data set[2].
+
+### References
+[1] StatQuest: Random Forests Part 1- Building, Using and Evaluating. 
+[2] https://en.wikipedia.org/wiki/Out-of-bag_error. 
+[3] https://machinelearningmastery.com/bagging-and-random-forest-ensemble-algorithms-for-machine-learning.
+[4] Book By Graham Williams on Data Mining with Rattle and R.
+[5] https://towardsdatascience.com/an-implementation-and-explanation-of-the-random-forest-in-python-77bf308a9b76
+
+
+
+
+# Importance in the Random Forest context
+
+```{r, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+load("RFimportance2.RData")
+```
+
+## What does importance in the Random Forest context mean?
+Importance plays a very big role when modelling with Random Forest. Importance in this case means, that each variable has a certain impact on the model. Some variables more, some less. By checking the importance, the model can get simpler and so way easier to fit when some variables with low importance left out. 
+
+## Assessing the importance of the variables 
+
+### Short summary of the given data
+The given dataframe consists out of the variables xin2, xin3, xin4, xin5 and out with 300 values each.
+An overview about the minimum and maximum value, and also the median and the mean is given in the following summary:
+
+```{r summary, echo=FALSE, message=FALSE, warning=FALSE}
+summary(df2)
+```
+
+To get a better overview, each xin is plotted over the out variable:
+
+```{r plots, echo=FALSE, message=FALSE, warning=FALSE}
+library("hrbrthemes")
+library("ggplot2")
+library("ggpubr")
+
+p1 <- ggplot(df2, aes(x=xin2, y=out, xmin = -2, xmax = 2)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", se=FALSE) +
+  theme_ipsum()
+
+
+p2 <- ggplot(df2, aes(x=xin3, y=out, xmin = -2, xmax = 2)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", se=FALSE) +
+  theme_ipsum()
+
+
+p3 <- ggplot(df2, aes(x=xin4, y=out, xmin = -2, xmax = 2)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", se=FALSE) +
+  theme_ipsum()
+
+
+p4 <- ggplot(df2, aes(x=xin5, y=out, xmin = -2, xmax = 2)) +
+  geom_point() +
+  geom_smooth(method=lm , color="red", se=FALSE) +
+  theme_ipsum()
+
+ggarrange(p1, p2, p3, p4, 
+          labels = c("xin2", "xin3", "xin4", "xin5"),
+          ncol = 2, nrow = 2)
+```
+
+### Expectation of the importance for the variables xin2 to xin5
+
+What you directly see when you look at the summary, but way better at the plots, is that the minimum and maximum values of the xin variables are increasing. So xin2 has the lowest spectrum of values and xin5 the highest. Looking at the plots, for xin2 it is just a very local point cloud where in xin5 you can see a much wider spread. This leads to the expectation and our assumption, that xin2 has the lowest impact on the out variable and xin5 the highest.  
+## Random Forest experiments with Rattle for checking the importances
+
+```{r rattle, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+library(rattle)   # Access the weather dataset and utilities.
+library(magrittr) # Utilise %>% and %<>% pipeline operators.
+
+# This log generally records the process of building a model. 
+# However, with very little effort the log can also be used 
+# to score a new dataset. The logical variable 'building' 
+# is used to toggle between generating transformations, 
+# when building a model and using the transformations, 
+# when scoring a dataset.
+
+building <- TRUE
+scoring  <- ! building
+
+# A pre-defined value is used to reset the random seed 
+# so that results are repeatable.
+
+crv$seed <- 42 
+
+#=======================================================================
+# Rattle Zeitstempel: 2021-06-25 12:36:15 x86_64-w64-mingw32 
+
+# Einen R-Datenrahmen laden
+
+crs$dataset <- df2
+
+# Eine einfache Zuammenfassunf (Struktur) der Datenreihe anzeigen
+
+str(crs$dataset)
+
+#=======================================================================
+# Rattle Zeitstempel: 2021-06-25 12:36:18 x86_64-w64-mingw32 
+
+# Action the user selections from the Data tab. 
+
+# Build the train/validate/test datasets.
+
+# nobs=300 train=210 validate=45 test=45
+
+set.seed(crv$seed)
+
+crs$nobs <- nrow(crs$dataset)
+
+crs$train <- sample(crs$nobs, 0.7*crs$nobs)
+
+crs$nobs %>%
+  seq_len() %>%
+  setdiff(crs$train) %>%
+  sample(0.15*crs$nobs) ->
+crs$validate
+
+crs$nobs %>%
+  seq_len() %>%
+  setdiff(crs$train) %>%
+  setdiff(crs$validate) ->
+crs$test
+
+# Die folgenden Variablenauswahl wurde entdeckt.
+
+crs$input     <- c("xin2", "xin3", "xin4", "xin5")
+
+crs$numeric   <- c("xin2", "xin3", "xin4", "xin5")
+
+crs$categoric <- NULL
+
+crs$target    <- "out"
+crs$risk      <- NULL
+crs$ident     <- NULL
+crs$ignore    <- NULL
+crs$weights   <- NULL
+
+#=======================================================================
+# Rattle Zeitstempel: 2021-06-25 12:36:35 x86_64-w64-mingw32 
+
+# Build a Random Forest model using the traditional approach.
+
+set.seed(crv$seed)
+
+crs$rf <- randomForest::randomForest(out ~ .,
+  data=crs$dataset[crs$train, c(crs$input, crs$target)], 
+  ntree=500,
+  mtry=2,
+  importance=TRUE,
+  na.action=randomForest::na.roughfix,
+  replace=FALSE)
+
+# Generate textual output of the 'Random Forest' model.
+
+crs$rf
+
+# Die Wicktigkeit der Variablen auflisten
+
+rn <- crs$rf %>%
+    randomForest::importance() %>%
+    round(2)
+    rn[order(rn[,1], decreasing=TRUE),]
+    
+p <- ggVarImp(crs$rf, title="Variablenwichtigkeit Random Forest df2")
+
+```
+
+So after doing some experiments with rattle and the given data set we got the following results for the importance:
+
+```{r printimportances, echo=FALSE, message=FALSE, warning=FALSE}
+print(rn)
+```
+
+The %IncMSE (Mean Decrease Accuracy) indicates how much the models accuracy will decrease without each variable. 
+The IncNodePurity (Mean Decrease Gini) is also a measure for the accuracy based on the Gini impurity index. [1]
+
+So taking a look at the values of %IncMSE you can see that xin5 is the most important variable. If you would leave this one out, the overall accuracy of the model would decrease by 80.69%. After this follows xin4 with 67.29%, then xin3 with 37.35%. The least important variable is xin5 with 23.81%.
+The values of the IncNodePurity confirms the importance order.
+For a better overview you can also see the importances in the following graphs:
+
+```{r plotimportances, echo=FALSE, message=FALSE, warning=FALSE}
+plot(p)
+```
+
+## Comparism of the results with the expectation
+
+In the beginning the expectation of the importances where that xin5 has the most impact and xin2 the least. 
+Comparing this expectations with the importances which results out of the Random Forest model, the assumptions were correct.
+
+## References
+
+[1] https://campus.datacamp.com/courses/introduction-to-machine-learning-in-r/how-much-will-i-earn?ex=6
+
+
+#  Make with randomForest a prediction for the SIAM-SDM2011 challenge
+
+## Data properties observing
+
+Larissa
+
+## Finding the best set of Random Forest hyperparameters using loops
+
+Initial configuration
+
+```{r, message=FALSE, warning=FALSE}
+#Sys.setenv("CUDA_VISIBLE_DEVICES" = -1)
+library(rattle) 
+library(magrittr)
+library(plotly)
+building <- TRUE
+scoring  <- ! building
+crv$seed <- 48
+set.seed(crv$seed)
+```
+
+Load data from "training.csv" file (nobs=674).
+
+```{r}
+fname         <- "data/training.csv" 
+crs$train_dataset <- read.csv(fname,
+			sep=";",
+			na.strings=c(".", "NA", "", "?"),
+			strip.white=TRUE, encoding="UTF-8")
+```
+
+Load data from "preliminaryTestData.csv" file (nobs=163).
+
+```{r}
+fname         <- "data/preliminaryTestData.csv" 
+crs$val_dataset <- read.csv(fname,
+			sep=";",
+			na.strings=c(".", "NA", "", "?"),
+			strip.white=TRUE, encoding="UTF-8")
+
+```
+
+Merge data sets from "training.csv" and "preliminaryTestData.csv" files.
+
+```{r}
+crs$dataset <- rbind(crs$train_dataset, crs$val_dataset)
+```
+
+Build the train/validate/ data sets with sampling 70/30/0 (nobs=837 train=586 validate=251 test=0)
+
+```{r}
+set.seed(crv$seed)
+
+crs$nobs <- nrow(crs$dataset)
+
+crs$train <- sample(crs$nobs, 0.7*crs$nobs)
+
+crs$nobs %>%
+  seq_len() %>%
+  setdiff(crs$train) ->
+crs$validate
+```
+
+Load testing data set from file "finalTestData.csv" (nobs=209 train=0 validate=0 test=209).
+
+```{r}
+fname         <- "data/finalTestData.csv" 
+crs$test_dataset <-read.csv(fname, na.strings=c(".", "NA", "", "?"), header=TRUE, sep=";", encoding="UTF-8", strip.white=TRUE)
+```
+
+Define input and target parameters.
+
+```{r}
+crs$input     <- c("X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8",
+                   "X9", "X10", "X11", "X12", "X13", "X14", "X15",
+                   "X16", "X17", "X18", "X19", "X20", "X21", "X22",
+                   "X23", "X24", "X25", "X26", "X27", "X28", "X29",
+                   "X30", "X31", "X32", "X33", "X34", "X35", "X36",
+                   "X37", "X38", "X39", "X40", "X41", "X42", "X43",
+                   "X44", "X45", "X46", "X47", "X48", "X49", "X50",
+                   "X51", "X52", "X53", "X54", "X55", "X56", "X57",
+                   "X58", "X59", "X60", "X61", "X62", "X63", "X64",
+                   "X65", "X66", "X67", "X68", "X69", "X70", "X71",
+                   "X72", "X73", "X74", "X75", "X76", "X77", "X78",
+                   "X79", "X80", "X81", "X82", "X83", "X84", "X85",
+                   "X86", "X87", "X88", "X89", "X90", "X91", "X92",
+                   "X93", "X94", "X95", "X96", "X97", "X98", "X99",
+                   "X100", "X101", "X102", "X103", "X104", "X105",
+                   "X106", "X107", "X108", "X109", "X110", "X111",
+                   "X112", "X113", "X114", "X115", "X116", "X117",
+                   "X118", "X119", "X120", "X121", "X122", "X123",
+                   "X124", "X125", "X126", "X127", "X128", "X129",
+                   "X130", "X131", "X132", "X133", "X134", "X135",
+                   "X136", "X137", "X138", "X139", "X140", "X141",
+                   "X142", "X143", "X144", "X145", "X146", "X147",
+                   "X148", "X149", "X150", "X151", "X152", "X153",
+                   "X154", "X155", "X156", "X157", "X158", "X159",
+                   "X160", "X161", "X162", "X163", "X164", "X165",
+                   "X166", "X167", "X168", "X169", "X170", "X171",
+                   "X172", "X173", "X174", "X175", "X176", "X177",
+                   "X178", "X179", "X180", "X181", "X182", "X183",
+                   "X184", "X185", "X186", "X187", "X188", "X189",
+                   "X190", "X191", "X192", "X193", "X194", "X195",
+                   "X196", "X197", "X198", "X199", "X200", "X201",
+                   "X202", "X203", "X204", "X205", "X206", "X207",
+                   "X208", "X209", "X210", "X211", "X212", "X213",
+                   "X214", "X215", "X216", "X217", "X218", "X219",
+                   "X220", "X221", "X222", "X223", "X224", "X225",
+                   "X226", "X227", "X228", "X229", "X230", "X231",
+                   "X232", "X233", "X234", "X235", "X236", "X237",
+                   "X238", "X239", "X240", "X241", "X242")
+
+crs$numeric   <- c("X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8",
+                   "X9", "X10", "X11", "X12", "X13", "X14", "X15",
+                   "X16", "X17", "X18", "X19", "X20", "X21", "X22",
+                   "X23", "X24", "X25", "X26", "X27", "X28", "X29",
+                   "X30", "X31", "X32", "X33", "X34", "X35", "X36",
+                   "X37", "X38", "X39", "X40", "X41", "X42", "X43",
+                   "X44", "X45", "X46", "X47", "X48", "X49", "X50",
+                   "X51", "X52", "X53", "X54", "X55", "X56", "X57",
+                   "X58", "X59", "X60", "X61", "X62", "X63", "X64",
+                   "X65", "X66", "X67", "X68", "X69", "X70", "X71",
+                   "X72", "X73", "X74", "X75", "X76", "X77", "X78",
+                   "X79", "X80", "X81", "X82", "X83", "X84", "X85",
+                   "X86", "X87", "X88", "X89", "X90", "X91", "X92",
+                   "X93", "X94", "X95", "X96", "X97", "X98", "X99",
+                   "X100", "X101", "X102", "X103", "X104", "X105",
+                   "X106", "X107", "X108", "X109", "X110", "X111",
+                   "X112", "X113", "X114", "X115", "X116", "X117",
+                   "X118", "X119", "X120", "X121", "X122", "X123",
+                   "X124", "X125", "X126", "X127", "X128", "X129",
+                   "X130", "X131", "X132", "X133", "X134", "X135",
+                   "X136", "X137", "X138", "X139", "X140", "X141",
+                   "X142", "X143", "X144", "X145", "X146", "X147",
+                   "X148", "X149", "X150", "X151", "X152", "X153",
+                   "X154", "X155", "X156", "X157", "X158", "X159",
+                   "X160", "X161", "X162", "X163", "X164", "X165",
+                   "X166", "X167", "X168", "X169", "X170", "X171",
+                   "X172", "X173", "X174", "X175", "X176", "X177",
+                   "X178", "X179", "X180", "X181", "X182", "X183",
+                   "X184", "X185", "X186", "X187", "X188", "X189",
+                   "X190", "X191", "X192", "X193", "X194", "X195",
+                   "X196", "X197", "X198", "X199", "X200", "X201",
+                   "X202", "X203", "X204", "X205", "X206", "X207",
+                   "X208", "X209", "X210", "X211", "X212", "X213",
+                   "X214", "X215", "X216", "X217", "X218", "X219",
+                   "X220", "X221", "X222", "X223", "X224", "X225",
+                   "X226", "X227", "X228", "X229", "X230", "X231",
+                   "X232", "X233", "X234", "X235", "X236", "X237",
+                   "X238", "X239", "X240", "X241", "X242")
+
+crs$categoric <- NULL
+
+crs$target    <- "Y"
+crs$risk      <- NULL
+crs$ident     <- NULL
+crs$ignore    <- NULL
+crs$weights   <- NULL
+```
+
+Create function that calculates performance statistics:
+
+* The “S” value indicates a positive outcome of the biological experiment
+
+* The “N” value indicates a negative outcome of the biological experiment
+
+We estimate the following statistics:
+
+* $Sensitivity=TP/(TP+FN)$
+
+* $Specificity=TN/(TN+FP)$
+
+* $Balanced Youden Index = min(Sensitivity,Specificity)$
+
+```{r}
+calculate_BYIndex <- function(confusion_matrix){
+
+  TP <- confusion_matrix[4] # True positive: actual S, predicted S
+  FN <- confusion_matrix[2] # False negative: actual S, predicted N
+  TN <- confusion_matrix[1] # True negative: actual N, predicted N
+  FP <- confusion_matrix[3] # False positive: actual N, predicted S
+  
+  Sensitivity <- TP / (TP+FN)
+  Specificity <- TN / (TN + FP)
+  BYIndex <- min(c(Sensitivity,Specificity))
+  
+  result<-list(Sensitivity,Specificity,BYIndex)
+  names(result)<-c("Sensitivity","Specificity","BYIndex")
+  
+  return(result)
+}
+```
+
+We will try to find best parameters only for $ntree$ and $mtry$. Information about these parameters are available in [1]
+
+* $ntree$ is number of trees to grow. This should not be set to too small a number, to ensure
+that every input row gets predicted at least a few times.
+* $mtry$ is number of variables randomly sampled as candidates at each split. The default values are different for classification $sqrt(p)$ and for regression $(p/3)$, where p is number of variables.
+
+Assign bounds for hyperparameters searching.
+
+```{r}
+ntree_min<-1
+ntree_max<-1004
+
+mtry_min<-1
+mtry_max<- length(crs$input)
+```
+
+Implement loops for searching the best hyperparameter set. On each loop new Random forest model is created in relay on training data. Then model makes a prediction using validation data and performance statistics of this prediction (Sensitivity, Specificity, Balanced Youden Index) are calculated and written in corresponding matrix, e.g. *Sensitivity_martix*. On these matrices changing different rows are referred to different values of *ntree*, different columns are referred to values of *mtry*.
+
+
+```{r, eval=FALSE}
+# Increment for the hyperparameters
+ntree_incr<-5
+mtry_incr<-2
+
+# Calculate the number of loops that must be done
+ntree_loops<-trunc((ntree_max-ntree_min+1)/ntree_incr)
+mtry_loops<-trunc((mtry_max-mtry_min+1)/mtry_incr)
+
+# Create matrices, where "Sensitivity","Specificity","BYIndex" will be stored
+Sensitivity_martix <- matrix(, nrow = ntree_loops, ncol = mtry_loops)
+Specificity_martix <- matrix(, nrow = ntree_loops, ncol = mtry_loops)
+BYIndex_martix <- matrix(, nrow = ntree_loops, ncol = mtry_loops)
+
+set.seed(crv$seed)
+
+for (i in seq(1,ntree_loops,1)) {
+  print(Sys.time())
+  print(paste("loop",toString(i)," / ",toString(ntree_loops)))
+  for (j in seq(1,mtry_loops,1)) {
+    ntree_p<-ntree_incr*(i-1)+ntree_min
+    mtry_p<-mtry_incr*(j-1)+mtry_min
+    
+    #print(paste("ntree_p =",toString(ntree_p),"ntree_p =",toString(mtry_p)))
+
+    # Create model using training data
+    crs$rf <- randomForest::randomForest(formula = as.factor(Y) ~ .,
+      data=crs$dataset[crs$train, c(crs$input, crs$target)], 
+      ntree=ntree_p,
+      mtry=mtry_p,
+      importance=TRUE,
+      na.action=randomForest::na.roughfix,
+      replace=FALSE)
+    
+    # Evaluate model performance on the validation dataset. 
+    # Obtain the response from the Random Forest model.
+      crs$pr <- predict(crs$rf, newdata=na.omit(crs$dataset[crs$validate, c(crs$input, crs$target)]))
+    
+    # Generate the confusion matrix showing counts.
+      confusion_validation<-rattle::errorMatrix(na.omit(crs$dataset[crs$validate, c(crs$input, crs$target)])$Y, crs$pr, count=TRUE)
+    
+    # Calculate Balanced Youden Index for prediction on validation data
+      Sensitivity_martix[i,j]<-calculate_BYIndex(confusion_validation)$Sensitivity
+      Specificity_martix[i,j]<-calculate_BYIndex(confusion_validation)$Specificity
+      BYIndex_martix[i,j]<-calculate_BYIndex(confusion_validation)$BYIndex
+  
+  }
+}
+```
+
+Save the results of the experiment.
+
+```{r, eval=FALSE}
+result<-list(crs, crv, ntree_min, ntree_max, mtry_min, mtry_max, ntree_incr, mtry_incr, Sensitivity_martix, Specificity_martix, BYIndex_martix, calculate_BYIndex)
+
+names(result)<-c('crs','crv','ntree_min','ntree_max','mtry_min','mtry_max','ntree_incr', 'mtry_incr','Sensitivity_martix','Specificity_martix','BYIndex_martix', 'calculate_BYIndex')
+
+save(result, file="file_name")
+```
+
+Load results of any experiment.
+
+```{r}
+load(file="03L0207")
+crs<-result$crs
+ntree_min<-result$ntree_min
+ntree_max<-result$ntree_max
+mtry_min<-result$mtry_min
+mtry_max<-result$mtry_max
+ntree_incr<-result$ntree_incr
+mtry_incr<-result$mtry_incr
+Sensitivity_martix<-result$Sensitivity_martix
+Specificity_martix<-result$Specificity_martix
+BYIndex_martix<-result$BYIndex_martix
+calculate_BYIndex<-result$calculate_BYIndex
+```
+
+
+
+Display the content of Sensitivity matrix.
+
+```{r}
+ntree <- ntree_incr*(seq_len(nrow(Sensitivity_martix))-1) + ntree_min
+mtry <- mtry_incr*(seq_len(ncol(Sensitivity_martix))-1) + mtry_min
+Sensitivity<-Sensitivity_martix
+plot_ly() %>% add_surface(x = ~ntree, y = ~mtry, z = ~Sensitivity)
+```
+
+Display the content of Specificity matrix.
+
+```{r}
+ntree <- ntree_incr*(seq_len(nrow(Specificity_martix))-1) + ntree_min
+mtry <- mtry_incr*(seq_len(ncol(Specificity_martix))-1) + mtry_min
+Specificity<-Specificity_martix
+plot_ly() %>% add_surface(x = ~ntree, y = ~mtry, z = ~Specificity)
+```
+
+Display the content of Balanced Youden Index matrix.
+
+```{r}
+ntree <- ntree_incr*(seq_len(nrow(BYIndex_martix))-1) + ntree_min
+mtry <- mtry_incr*(seq_len(ncol(BYIndex_martix))-1) + mtry_min
+Balanced_Youden_Index<-BYIndex_martix
+plot_ly() %>% add_surface(x = ~ntree, y = ~mtry, z = ~Balanced_Youden_Index)
+```
+
+Display the set with the best performance 
+
+```{r}
+param_best<-which(BYIndex_martix == max(BYIndex_martix), arr.ind = TRUE)
+# Location in BYIndex_martix
+param_best[,1]<-ntree_incr*(param_best[,1]-1)+ntree_min
+param_best[,2]<-mtry_incr*(param_best[,2]-1)+mtry_min
+colnames(param_best)<-c("ntree_best", "mtry_best")
+# Best set of hyperparameters
+param_best
+```
+
+Build a model with set of best parameters using train data and make an evaluation using test data.
+
+```{r}
+set.seed(crv$seed+1)
+
+ntree_best <- param_best[1,1]
+mtry_best <- param_best[1,2]
+
+crs$rf <- randomForest::randomForest(formula = as.factor(Y) ~ .,
+  data=crs$dataset[crs$train, c(crs$input, crs$target)], 
+  ntree=ntree_best,
+  mtry=mtry_best,
+  importance=TRUE,
+  na.action=randomForest::na.roughfix,
+  replace=FALSE)
+
+# Obtain the response from the Random Forest model.
+crs$pr <- predict(crs$rf, newdata=na.omit(crs$test_dataset[,c(crs$input, crs$target),drop=FALSE]))
+    
+# Generate the confusion matrix showing counts.
+confusion_test<-rattle::errorMatrix(na.omit(crs$test_dataset[,c(crs$input, crs$target),drop=FALSE])$Y, crs$pr, count=TRUE)
+```
+
+Information about final model
+
+```{r}
+crs$rf
+```
+
+Performance metric on test data.
+
+```{r}
+confusion_test
+
+calculate_BYIndex(confusion_test)
+```
+
+```{r, class.output="scroll-100"}
+printRandomForests(crs$rf, models=NULL, include.class=NULL, format="")
+```
+
+## Find the set values, which are not located on the lower bound
+
+We notice, that the best parameter set is referred to $ntree=1$, that could be not appropriate for testing data. Moreover, we got different result for different seeds. We will try to find a set, where values of hyperparamters are not located on the bounds.
+
+```{r}
+# Consider first 40 results of BYIndex_martix 
+BYIndex_list<-c(BYIndex_martix)
+BYIndex_list<-BYIndex_list[order(BYIndex_list,decreasing = TRUE)][1:40]
+
+# Create a data frame with information about location (row and col) of these best results
+param_df<-data.frame(which(BYIndex_martix >= BYIndex_list[length(BYIndex_list)], arr.ind = TRUE))
+
+# transform indexes of BYIndex_martix to values of ntree and mtry
+param_df[,1]<-ntree_incr*(param_df[,1]-1)+ntree_min
+param_df[,2]<-mtry_incr*(param_df[,2]-1)+mtry_min
+
+# create new data frame with filtered values of hyperparameters
+param_best<-subset(param_df, param_df$row >=5 )
+colnames(param_best) <- c("ntree", "mtry")
+param_best
+```
+
+Build a model again with new set of best parameters using train data and make an evaluation using test data.
+
+```{r}
+ntree_best <- param_best[1,1]
+mtry_best <- param_best[1,2]
+
+crs$rf <- randomForest::randomForest(formula = as.factor(Y) ~ .,
+  data=crs$dataset[crs$train, c(crs$input, crs$target)], 
+  ntree=ntree_best,
+  mtry=mtry_best,
+  importance=TRUE,
+  na.action=randomForest::na.roughfix,
+  replace=FALSE)
+
+# Obtain the response from the Random Forest model.
+crs$pr <- predict(crs$rf, newdata=na.omit(crs$test_dataset[,c(crs$input, crs$target),drop=FALSE]))
+    
+# Generate the confusion matrix showing counts.
+confusion_test<-rattle::errorMatrix(na.omit(crs$test_dataset[,c(crs$input, crs$target),drop=FALSE])$Y, crs$pr, count=TRUE)
+```
+
+Performance metric on test data.
+
+```{r}
+confusion_test
+calculate_BYIndex(confusion_test)
+```
+
+## Finding the best set of Random Forest hyperparameters using SPOT
+
+Assign file names for input data and results
+
+```{r}
+# File with input data
+fname <- "data/training.csv"
+
+# File name where to save and load the results
+filename_result<-'01K2806'
+```
+
+Import libraries
+
+```{r, message=FALSE, warning=FALSE}
+library("mlr")
+library("SPOT")
+```
+
+
+Task specification
+```{r}
+task <- makeClassifTask(data=crs$dataset[crs$train, c(crs$input, crs$target)], target="Y")
+ 
+rsmpl <- makeResampleDesc("Holdout", split=0.6)
+```
+
+Project Setup
+```{r}
+task.type <- "classif"
+data.seed <- 1
+tuner.seed <- 1
+timebudget <- 15*3600 # budget for tuning in seconds
+timeout <- timebudget/20 # use 1/20 times the budget before tuning is stopped
+```
+
+Learner (Algorithm) Definition
+```{r}
+model <- "randomForest"
+learner <- paste(task.type, model, sep=".")
+```
+
+Experiment Configuration
+```{r, eval=FALSE}
+if(model=="randomForest"){
+  tunepars <- c("ntree","mtry")
+  lower <- c( 1,   1)
+  upper <- c(600, 20)
+  type <-  c("integer","integer")
+  if(task.type=="classif"){
+    fixpars <- list(eval_metric="logloss",
+                    nthread=1) #one thread, not parallel
+  }else{
+    fixpars <- list(eval_metric="rmse",
+                    nthread=1) #one thread, not parallel
+  }
+  factorlevels <- list()
+  transformations <- c(trans_id, trans_id)
+  dummy=TRUE
+  relpars <- list()
+}
+```
+
+Imput missing values (for classification task - add the most frequient value)
+```{r, eval=FALSE}
+task <- impute(
+  task,
+  classes = list(
+    factor = imputeMode(),
+    integer = imputeMedian(),
+    numeric = imputeMean()
+    )
+  )$task
+```
+
+Replace all factor features with their dummy variables. Internally model.matrix is used. Non factor features will be left untouched and passed to the result.
+```{r, eval=FALSE}
+if(dummy){
+  task <- createDummyFeatures(task)
+}
+```
+
+Set Seed
+```{r, eval=FALSE}
+set.seed(data.seed)
+```
+
+Compile the information as a list.
+```{r, eval=FALSE}
+cfg <- list(
+ learner=learner,
+   tunepars=tunepars,
+   lower=lower,
+   upper=upper,
+   type=type,
+   fixpars=fixpars,
+   factorlevels=factorlevels,
+   transformations=transformations,
+   dummy=dummy,
+   relpars=relpars,
+   task=task,
+   resample = rsmpl
+)
+```
+
+Get objective function
+```{r, eval=FALSE}
+objf <- get_objf(config=cfg, timeout=timeout)
+```
+
+We mute output messages and warning during SPOT processing
+
+```{r, eval=FALSE}
+configureMlr(
+  show.info = FALSE,
+  on.learner.error = "quiet",
+  on.learner.warning = "quiet",
+  on.par.without.desc = "quiet",
+  show.learner.output = FALSE,
+  on.error.dump = FALSE
+)
+```
+
+Our Tuning Run with SPOT
+
+```{r, eval=FALSE}
+result2 <- spot(fun = objf,
+              lower=cfg$lower,
+              upper=cfg$upper,
+              control = list(types=cfg$type,
+                             maxTime = timebudget/60, #convert to minutes
+                             plots=TRUE,
+                             progress = TRUE,
+                             model=buildKriging,
+                             optimizer=optimDE,
+                             noise=TRUE,
+                             seedFun=123,
+                             seedSPOT=tuner.seed,
+                             designControl=list(size=5*length(cfg$lower)),
+                             funEvals=Inf,
+                             modelControl=list(target="y",
+                                               useLambda=TRUE,
+                                               reinterpolate=TRUE),
+                             optimizerControl=list(funEvals=100*length(cfg$lower))
+              )
+)
+ybest<-result2$ybest
+xbest<-result2$xbest
+```
+
+Save result of experiment
+```{r, eval=FALSE}
+save(result2, file=filename_result)
+```
+
+Save the input of experiment (all configurations). It will be saved in the same folder as specified at the beginning.
+```{r, eval=FALSE}
+input<-list(task.type, data.seed, tuner.seed,timebudget,timeout,model,learner,lower,upper,type,fixpars,factorlevels,transformations,dummy,relpars)
+
+names(input)<-c('task.type','data.seed','tuner.seed','timebudget','timeout','model','learner','lower','upper','type','fixpars','factorlevels','transformations','dummy','relpars')
+
+save(input, file=paste(dirname(filename_result),'/input_',basename(filename_result),sep=''))
+```
+
+Load result
+```{r}
+load("01K2806")
+```
+
+DIsplay the result of log-loss function and hyperparmeters
+
+```{r}
+result2$ybest
+result2$xbest
+```
+Build a model again with new set of best parameters using train data and make an evaluation using test data.
+
+```{r}
+ntree_best <- result2$xbest[1]
+mtry_best <- result2$xbest[2]
+
+crs$rf <- randomForest::randomForest(formula = as.factor(Y) ~ .,
+  data=crs$dataset[crs$train, c(crs$input, crs$target)], 
+  ntree=ntree_best,
+  mtry=mtry_best,
+  importance=TRUE,
+  na.action=randomForest::na.roughfix,
+  replace=FALSE)
+
+# Obtain the response from the Random Forest model.
+crs$pr <- predict(crs$rf, newdata=na.omit(crs$test_dataset[,c(crs$input, crs$target),drop=FALSE]))
+    
+# Generate the confusion matrix showing counts.
+confusion_test<-rattle::errorMatrix(na.omit(crs$test_dataset[,c(crs$input, crs$target),drop=FALSE])$Y, crs$pr, count=TRUE)
+```
+
+Performance metric on test data.
+
+```{r}
+confusion_test
+calculate_BYIndex(confusion_test)
+```
+For the SPOT tuning, we used The Log-loss objective function, which represents how close the predicted probability of each entry of data to be classified into exact class to the corresponding true value (0 or 1). The more the predicted probability diverges from the actual value, the higher is the log-loss value. [2] But for our task, we need to calculate the Balanced Youden Index, which takes into account numbers of true positives, true negatives, false positives, and false negatives. The parameter set, that leads to the lowest value of the Log-loss objective function, does not guarantee the maximum value of the Balanced Youden Index. 
+
+## References
+
+[1] Breiman and Cutler's Random Forests for Classification and Regression. Link: https://www.stat.berkeley.edu/~breiman/RandomForests/
+
+[2] Gaurav Dembla. Intuition behind Log-loss score. Towerds data science. Link: https://towardsdatascience.com/intuition-behind-log-loss-score-4e0c9979680a
+
+
